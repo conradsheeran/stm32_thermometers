@@ -23,7 +23,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "oled.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -44,7 +44,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+int8_t fonts_index[] = {1, 2, 3, -1, 1, 2, -1, 1, 2, 3, 14, 9, -1};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -90,7 +90,11 @@ int main(void)
   MX_I2C1_Init();
   MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
-
+  HAL_Delay(100);
+  OLED_Init();
+  OLED_Clear();
+  HAL_Delay(1000);
+  OLED_Show_By_Index(fonts_index, sizeof(fonts_index), 16);
   /* USER CODE END 2 */
 
   /* Infinite loop */

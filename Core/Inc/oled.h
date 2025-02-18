@@ -3,6 +3,7 @@
 
 #include "i2c.h"
 void OLED_Init();
-uint8_t OLED_Show(int8_t *fonts_index, uint8_t number, uint8_t size);
+void OLED_Clear();
+uint8_t OLED_Show_By_Index(int8_t *fonts_index, uint8_t number, uint8_t size);
 
 #endif
