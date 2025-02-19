@@ -88,10 +88,10 @@ void OLED_Clear() {
  * @param  fonts_index: 汉字在 fonts_map 中的索引，-1 表示换行符
  * @param  number: 汉字的数量（包括换行符）
  * @param  size: 汉字的大小（例如 16 * 16），必须为 8 的倍数
- * @retval 0 表示成功，-1 参数设置错误，-2 内存错误，-3 字数超过显示范围
+ * @return 0 表示成功，-1 参数设置错误，-2 内存错误，-3 字数超过显示范围
  * @note   换行符的索引为 -1，汉字索引不可为负数，目前仅适配 16 * 16 的汉字
  */
-uint8_t OLED_Show_By_Index(int8_t *fonts_index, uint8_t number, uint8_t size) {
+uint8_t OLED_Show_By_Index(int16_t *fonts_index, uint8_t number, uint8_t size, uint8_t is_ascii) {
   /*--------------------参数检查-----------------------*/
   if (size % 8 != 0 || size == 0)
     return -1;
@@ -169,8 +169,13 @@ uint8_t OLED_Show_By_Index(int8_t *fonts_index, uint8_t number, uint8_t size) {
     }
 
     for (uint8_t i = 0; i < chars_in_line_number; i++) {
-      memcpy(&line_font[i * 32], fonts_map[line_index[i]],
-             32); // fixme: 适配不同大小的字体
+      if (is_ascii) {
+        memcpy(&line_font[i * 32], ascii[line_index[i]],
+               32); // fixme: 适配不同大小的字体
+      } else {
+        memcpy(&line_font[i * 32], fonts[line_index[i]],
+               32); // fixme: 适配不同大小的字体
+      }
     }
 
     free(line_index);
@@ -224,3 +229,83 @@ uint8_t OLED_Show_By_Index(int8_t *fonts_index, uint8_t number, uint8_t size) {
     return 0;
   }
 }
+
+/**
+ * @author Yang He
+ * @brief 用于直接在 OLED 上显示 ASCII 字符串
+ * @param ascii: ASCII 字符串，语法和 printf 相同，暂时只支持 '\n' 换行
+ * @param size: 字体大小，目前仅支持 16 * 16 的字体
+ * @return 0 表示成功，-1 参数设置错误，-2 内存错误，-3 字数超过显示范围
+ */
+uint8_t OLED_Show_ASCII(char *ascii, uint8_t size) {
+  /*--------------------参数检查-----------------------*/
+  if (ascii == NULL || ascii[0] == '\0') {
+    return -1;
+  }
+  /*--------------------------------------------------*/
+
+  /*----------建立 ascii_map、fonts_map 索引------------*/
+  int16_t ascii_index[256];
+  int16_t fonts_index[256];
+  memset(ascii_index, -1, sizeof(ascii_index));
+  memset(fonts_index, -1, sizeof(fonts_index)); // fixme: 建立 ascii_map、fonts_map 共同索引
+
+  for (uint8_t i = 0; i < strlen(ascii_map); i++) {
+    unsigned char temp_ascii = (unsigned char)ascii_map[i];
+    if (ascii_index[temp_ascii] == -1) {
+      ascii_index[temp_ascii] = i;
+    }
+  }
+
+  for (uint8_t i = 0; i < strlen(fonts_map); i++) {
+    unsigned char temp_fonts = (unsigned char)fonts_map[i];
+    if (fonts_index[temp_fonts] == -1) {
+      fonts_index[temp_fonts] = i;
+    }
+  }
+  /*--------------------------------------------------*/
+
+  /*-------------------计算可用字符数量------------------*/
+  uint8_t available_ascii_chars = 0;
+  uint8_t available_font_chars = 0;
+  uint8_t length = strlen(ascii);
+  for (uint8_t i = 0; i < length; i++) {
+    if (ascii[i] == '\n') {
+      available_ascii_chars++;
+    } else {
+      if (ascii_index[(unsigned char)ascii[i]] != -1) {
+        available_ascii_chars++;
+      } else {
+        available_font_chars++;
+      }
+    }
+  }
+  /*--------------------------------------------------*/
+
+  /*-----------------建立 ASCII 索引--------------------*/
+  if (available_ascii_chars == 0)
+    return 0;
+  int16_t *ascii_fonts_index = (int16_t *)malloc(available_ascii_chars * sizeof(int16_t));
+  if (ascii_fonts_index == NULL)
+    return -2;
+  uint8_t fonts_index_index = 0;
+  for (uint8_t i = 0; i < length; i++) {
+    if (ascii[i] == '\n') {
+      ascii_fonts_index[fonts_index_index++] = -1;
+    } else {
+      if (ascii_index[(unsigned char)ascii[i]] != -1) {
+        ascii_fonts_index[fonts_index_index++] =
+            ascii_index[(unsigned char)ascii[i]];
+      }
+    }
+  }
+  /*--------------------------------------------------*/
+
+  uint8_t result =
+      OLED_Show_By_Index(ascii_fonts_index, fonts_index_index, size, true);
+  free(ascii_fonts_index);
+  return result;
+}
+
+// todo: 考虑对于非 ASCII 字符的显示，在该字符前、后引入 -2 以标记该部分为非
+// ASCII 字符，需要后续在 OLED_Show_By_Index 中特殊处理，OLED_Show_By_Index 同样需要修改
